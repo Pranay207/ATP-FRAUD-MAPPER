@@ -1,0 +1,76 @@
+{
+  "name": "FraudCase",
+  "type": "object",
+  "properties": {
+    "complaint_id": {
+      "type": "string",
+      "description": "Unique fraud case ID"
+    },
+    "victim_name": {
+      "type": "string"
+    },
+    "victim_account": {
+      "type": "string"
+    },
+    "victim_bank": {
+      "type": "string"
+    },
+    "victim_mobile": {
+      "type": "string"
+    },
+    "fraud_amount": {
+      "type": "number"
+    },
+    "fraud_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "fraud_type": {
+      "type": "string",
+      "enum": [
+        "phishing",
+        "otp_fraud",
+        "scam",
+        "impersonation",
+        "malware",
+        "social_engineering"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "investigating",
+        "partially_recovered",
+        "recovered",
+        "closed"
+      ],
+      "default": "active"
+    },
+    "recovered_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "frozen_accounts_count": {
+      "type": "number",
+      "default": 0
+    },
+    "total_accounts_involved": {
+      "type": "number",
+      "default": 0
+    },
+    "investigating_officer": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "complaint_id",
+    "victim_name",
+    "victim_account",
+    "fraud_amount",
+    "fraud_type"
+  ]
+}

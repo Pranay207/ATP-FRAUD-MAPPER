@@ -1,0 +1,61 @@
+{
+  "name": "Transaction",
+  "type": "object",
+  "properties": {
+    "transaction_id": {
+      "type": "string"
+    },
+    "sender_account": {
+      "type": "string"
+    },
+    "receiver_account": {
+      "type": "string"
+    },
+    "amount": {
+      "type": "number"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "transaction_type": {
+      "type": "string",
+      "enum": [
+        "UPI",
+        "IMPS",
+        "NEFT",
+        "RTGS",
+        "wallet"
+      ]
+    },
+    "transaction_status": {
+      "type": "string",
+      "enum": [
+        "success",
+        "pending",
+        "failed"
+      ],
+      "default": "success"
+    },
+    "reference_id": {
+      "type": "string",
+      "description": "UTR / Bank reference"
+    },
+    "case_id": {
+      "type": "string"
+    },
+    "is_suspicious": {
+      "type": "boolean",
+      "default": false
+    },
+    "flag_reason": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "transaction_id",
+    "sender_account",
+    "receiver_account",
+    "amount"
+  ]
+}

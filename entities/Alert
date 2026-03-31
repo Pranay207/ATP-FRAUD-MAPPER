@@ -1,0 +1,58 @@
+{
+  "name": "Alert",
+  "type": "object",
+  "properties": {
+    "alert_type": {
+      "type": "string",
+      "enum": [
+        "rapid_transfer",
+        "shared_device",
+        "deep_chain",
+        "multi_location",
+        "high_velocity",
+        "large_cashout",
+        "new_account",
+        "pattern_match"
+      ]
+    },
+    "severity": {
+      "type": "string",
+      "enum": [
+        "critical",
+        "high",
+        "medium",
+        "low"
+      ],
+      "default": "medium"
+    },
+    "account_number": {
+      "type": "string"
+    },
+    "case_id": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "is_read": {
+      "type": "boolean",
+      "default": false
+    },
+    "action_taken": {
+      "type": "string",
+      "enum": [
+        "none",
+        "flagged",
+        "frozen",
+        "escalated",
+        "dismissed"
+      ],
+      "default": "none"
+    }
+  },
+  "required": [
+    "alert_type",
+    "severity",
+    "description"
+  ]
+}

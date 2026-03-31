@@ -1,0 +1,342 @@
+// Export utilities for PDF and CSV reports
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
+
+/**
+ * Export investigation as PDF report with charts and data
+ */
+export async function exportInvestigationPDF(
+  caseData,
+  analytics,
+  chartElements = {}
+) {
+  try {
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    let yPosition = 20;
+    const margin = 15;
+    const lineHeight = 7;
+
+    // Set colors
+    const headerColor = [26, 35, 126]; // Dark blue
+    const subheaderColor = [79, 89, 213]; // Medium blue
+    const textColor = [32, 32, 32]; // Dark gray
+
+    // 1. Title & Case Overview
+    doc.setFontSize(20);
+    doc.setTextColor(...headerColor);
+    doc.text("ATP FRAUD INVESTIGATION REPORT", margin, yPosition);
+    yPosition += 15;
+
+    doc.setFontSize(12);
+    doc.setTextColor(...subheaderColor);
+    doc.text(`Case ID: ${caseData.complaint_id}`, margin, yPosition);
+    yPosition += lineHeight + 2;
+
+    doc.setFontSize(10);
+    doc.setTextColor(...textColor);
+    const caseInfo = [
+      [`Victim: ${caseData.victim_name}`, `Bank: ${caseData.victim_bank}`],
+      [`Victim Account: ${caseData.victim_account}`, `Fraud Amount: ₹${caseData.fraud_amount.toLocaleString()}`],
+      [`Fraud Type: ${caseData.fraud_type}`, `Status: ${caseData.status}`],
+      [`Generated: ${new Date().toLocaleString()}`, `Total Accounts: ${caseData.total_accounts_involved}`],
+    ];
+
+    caseInfo.forEach((row) => {
+      doc.text(row[0], margin, yPosition);
+      doc.text(row[1], pageWidth / 2, yPosition);
+      yPosition += lineHeight;
+    });
+
+    yPosition += 5;
+
+    // 2. Recovery Metrics
+    doc.setFontSize(12);
+    doc.setTextColor(...subheaderColor);
+    doc.text("Recovery Metrics", margin, yPosition);
+    yPosition += lineHeight + 3;
+
+    doc.setFontSize(10);
+    doc.setTextColor(...textColor);
+    const { recoveryMetrics } = analytics;
+    const metrics = [
+      [`Total Fraud Amount:`, `₹${recoveryMetrics.totalFraudAmount.toLocaleString()}`],
+      [`Amount Frozen:`, `₹${recoveryMetrics.amountFrozen.toLocaleString()}`],
+      [`Amount Still Moving:`, `₹${recoveryMetrics.amountStillMoving.toLocaleString()}`],
+      [`Released (Verified):`, `₹${recoveryMetrics.releasedToInnocentRecipients.toLocaleString()}`],
+      [`Recovery %:`, `${recoveryMetrics.recoveryPercentage.toFixed(2)}%`],
+    ];
+
+    metrics.forEach((row) => {
+      doc.text(row[0], margin + 5, yPosition);
+      doc.text(row[1], pageWidth * 0.65, yPosition);
+      yPosition += lineHeight;
+    });
+
+    yPosition += 5;
+
+    // 3. Account Classification
+    if (yPosition > pageHeight - 40) {
+      doc.addPage();
+      yPosition = 20;
+    }
+
+    doc.setFontSize(12);
+    doc.setTextColor(...subheaderColor);
+    doc.text("Account Classification", margin, yPosition);
+    yPosition += lineHeight + 3;
+
+    doc.setFontSize(9);
+    const classifications = {};
+    analytics.accounts.forEach((acc) => {
+      const cls = acc.classification || "unknown";
+      if (!classifications[cls]) classifications[cls] = 0;
+      classifications[cls]++;
+    });
+
+    Object.entries(classifications).forEach(([cls, count]) => {
+      doc.setTextColor(...textColor);
+      doc.text(`${cls.charAt(0).toUpperCase() + cls.slice(1)}: ${count} account(s)`, margin + 5, yPosition);
+      yPosition += lineHeight;
+    });
+
+    yPosition += 5;
+
+    // 4. Attempted to add chart if available
+    if (chartElements.dashboard && yPosition < pageHeight - 50) {
+      try {
+        const canvas = await html2canvas(chartElements.dashboard, { scale: 2 });
+        const imgData = canvas.toDataURL("image/png");
+        const chartHeight = Math.min(60, pageHeight - yPosition - 20);
+        doc.addImage(imgData, "PNG", margin, yPosition, pageWidth - 2 * margin, chartHeight);
+        yPosition += chartHeight + 10;
+      } catch (e) {
+        console.warn("Could not capture dashboard chart:", e);
+      }
+    }
+
+    // 5. Top Accounts by Risk
+    if (yPosition > pageHeight - 50) {
+      doc.addPage();
+      yPosition = 20;
+    }
+
+    doc.setFontSize(12);
+    doc.setTextColor(...subheaderColor);
+    doc.text("Top High-Risk Accounts", margin, yPosition);
+    yPosition += lineHeight + 3;
+
+    doc.setFontSize(8);
+    const topRiskAccounts = [...analytics.accounts]
+      .sort((a, b) => (b.risk_score || 0) - (a.risk_score || 0))
+      .slice(0, 5);
+
+    topRiskAccounts.forEach((acc) => {
+      doc.setTextColor(...textColor);
+      const accountStr = acc.account_number.substring(0, 10) + "...";
+      doc.text(accountStr, margin + 5, yPosition);
+      doc.text(`Risk: ${acc.risk_score}, Status: ${acc.account_status}`, margin + 40, yPosition);
+      yPosition += lineHeight;
+    });
+
+    // 6. Footer
+    doc.setFontSize(8);
+    doc.setTextColor([150, 150, 150]);
+    doc.text(
+      "This report is generated by ATP Fraud Mapper for law enforcement investigation purposes.",
+      margin,
+      pageHeight - 10
+    );
+
+    // Save
+    doc.save(`ATP_Investigation_${caseData.complaint_id}_${new Date().toISOString().slice(0, 10)}.pdf`);
+    return true;
+  } catch (error) {
+    console.error("PDF export failed:", error);
+    throw new Error(`Failed to export PDF: ${error.message}`);
+  }
+}
+
+/**
+ * Export transactions as CSV
+ */
+export function exportTransactionsCSV(transactions, caseData) {
+  try {
+    const headers = [
+      "Transaction ID",
+      "Sender Account",
+      "Receiver Account",
+      "Amount (₹)",
+      "Timestamp",
+      "Status",
+      "Type",
+      "Reference ID",
+      "Flag Reason",
+      "Is Suspicious",
+    ];
+
+    const rows = transactions.map((tx) => [
+      tx.transaction_id,
+      tx.sender_account,
+      tx.receiver_account,
+      tx.amount,
+      tx.timestamp,
+      tx.transaction_status,
+      tx.transaction_type,
+      tx.reference_id,
+      tx.flag_reason || "",
+      tx.is_suspicious ? "Yes" : "No",
+    ]);
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) =>
+        row.map((cell) => {
+          const str = String(cell || "");
+          return str.includes(",") ? `"${str}"` : str;
+        }).join(",")
+      ),
+    ].join("\n");
+
+    downloadCSV(csvContent, `ATP_Transactions_${caseData.complaint_id}.csv`);
+    return true;
+  } catch (error) {
+    console.error("Transaction CSV export failed:", error);
+    throw new Error(`Failed to export transactions: ${error.message}`);
+  }
+}
+
+/**
+ * Export accounts as CSV with classifications
+ */
+export function exportAccountsCSV(accounts, caseData) {
+  try {
+    const headers = [
+      "Account Number",
+      "Account Holder",
+      "Bank",
+      "Classification",
+      "Risk Score",
+      "Trust Score",
+      "Status",
+      "Transaction Velocity",
+      "Chain Depth",
+      "Current Balance",
+      "Location",
+    ];
+
+    const rows = accounts.map((acc) => [
+      acc.account_number,
+      acc.account_holder_name,
+      acc.bank_name,
+      acc.classification,
+      acc.risk_score,
+      acc.trust_score,
+      acc.account_status,
+      acc.transaction_velocity,
+      acc.chain_depth_level,
+      acc.current_balance,
+      acc.location,
+    ]);
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) =>
+        row.map((cell) => {
+          const str = String(cell || "");
+          return str.includes(",") ? `"${str}"` : str;
+        }).join(",")
+      ),
+    ].join("\n");
+
+    downloadCSV(csvContent, `ATP_Accounts_${caseData.complaint_id}.csv`);
+    return true;
+  } catch (error) {
+    console.error("Accounts CSV export failed:", error);
+    throw new Error(`Failed to export accounts: ${error.message}`);
+  }
+}
+
+/**
+ * Export full investigation summary
+ */
+export function exportInvestigationSummaryCSV(caseData, analytics) {
+  try {
+    const { recoveryMetrics } = analytics;
+
+    const summaryData = [
+      ["INVESTIGATION SUMMARY"],
+      [],
+      ["Case Information"],
+      ["Case ID", caseData.complaint_id],
+      ["Victim Name", caseData.victim_name],
+      ["Victim Account", caseData.victim_account],
+      ["Victim Bank", caseData.victim_bank],
+      ["Fraud Amount", caseData.fraud_amount],
+      ["Fraud Type", caseData.fraud_type],
+      ["Status", caseData.status],
+      ["Generated", new Date().toLocaleString()],
+      [],
+      ["Recovery Metrics"],
+      ["Total Fraud Amount", recoveryMetrics.totalFraudAmount],
+      ["Amount Frozen", recoveryMetrics.amountFrozen],
+      ["Amount Still Moving", recoveryMetrics.amountStillMoving],
+      ["Released (Verified)", recoveryMetrics.releasedToInnocentRecipients],
+      ["Recovery Percentage", `${recoveryMetrics.recoveryPercentage.toFixed(2)}%`],
+      [],
+      ["Account Statistics"],
+      ["Total Accounts", analytics.accounts.length],
+      ["Frozen Accounts", analytics.accounts.filter((a) => a.account_status === "frozen").length],
+      ["High Risk Accounts", analytics.accounts.filter((a) => a.risk_score >= 75).length],
+      [],
+      ["Transaction Analysis"],
+      ["Total Transactions", analytics.transactions.length],
+      ["Suspicious Transactions", analytics.transactions.filter((t) => t.is_suspicious).length],
+    ];
+
+    const csvContent = summaryData
+      .map((row) =>
+        row.map((cell) => {
+          const str = String(cell || "");
+          return str.includes(",") || str.includes('"') ? `"${str.replace(/"/g, '""')}"` : str;
+        }).join(",")
+      )
+      .join("\n");
+
+    downloadCSV(csvContent, `ATP_Summary_${caseData.complaint_id}.csv`);
+    return true;
+  } catch (error) {
+    console.error("Summary export failed:", error);
+    throw new Error(`Failed to export summary: ${error.message}`);
+  }
+}
+
+/**
+ * Helper: Download CSV file
+ */
+function downloadCSV(csvContent, fileName) {
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+/**
+ * Helper: Download all reports as ZIP (requires zip library, simplified here)
+ */
+export async function exportAllReports(caseData, analytics, transactions, accounts) {
+  try {
+    // Export CSV files
+    exportTransactionsCSV(transactions, caseData);
+    setTimeout(() => exportAccountsCSV(accounts, caseData), 500);
+    setTimeout(() => exportInvestigationSummaryCSV(caseData, analytics), 1000);
+    // Note: For full ZIP support, integrate a library like jszip
+    return true;
+  } catch (error) {
+    console.error("All reports export failed:", error);
+    throw error;
+  }
+}

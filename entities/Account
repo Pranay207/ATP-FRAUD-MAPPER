@@ -1,0 +1,102 @@
+{
+  "name": "Account",
+  "type": "object",
+  "properties": {
+    "account_number": {
+      "type": "string"
+    },
+    "account_holder_name": {
+      "type": "string"
+    },
+    "mobile_number": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string"
+    },
+    "kyc_id_masked": {
+      "type": "string",
+      "description": "Masked PAN/Aadhaar"
+    },
+    "bank_name": {
+      "type": "string"
+    },
+    "account_creation_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "current_balance": {
+      "type": "number"
+    },
+    "last_withdrawal_amount": {
+      "type": "number"
+    },
+    "withdrawal_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "account_status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "frozen",
+        "closed"
+      ],
+      "default": "active"
+    },
+    "classification": {
+      "type": "string",
+      "enum": [
+        "victim",
+        "mastermind",
+        "splitter",
+        "mule",
+        "cashout",
+        "innocent",
+        "unknown"
+      ],
+      "default": "unknown"
+    },
+    "risk_score": {
+      "type": "number",
+      "description": "0-100 suspicion level"
+    },
+    "trust_score": {
+      "type": "number",
+      "description": "0-100 legitimacy score"
+    },
+    "transaction_velocity": {
+      "type": "number",
+      "description": "Transactions per hour"
+    },
+    "chain_depth_level": {
+      "type": "number"
+    },
+    "freeze_priority": {
+      "type": "number",
+      "description": "1-10 urgency to freeze"
+    },
+    "case_id": {
+      "type": "string",
+      "description": "Related fraud case complaint_id"
+    },
+    "ip_address": {
+      "type": "string"
+    },
+    "device_id": {
+      "type": "string"
+    },
+    "location": {
+      "type": "string"
+    },
+    "login_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "account_number",
+    "account_holder_name",
+    "bank_name"
+  ]
+}
